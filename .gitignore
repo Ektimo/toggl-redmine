@@ -8,8 +8,9 @@ pids
 *.seed
 *.pid.lock
 
-# Dependency directories
+# Dependencies
 node_modules/
+package-lock.json
 
 # Intellij ide
 .idea
