@@ -10,9 +10,9 @@ export module Helper {
     
     export function extractSingleHashtagNumber(value: string): Option<number>{
         let hashtags: RegExpMatchArray | null = value.match(/#[0-9]+/gi);
-        if(hashtags === null || hashtags.length !== 1)
-            return Option.none();
-        return Option.of(+hashtags[0].substr(1));
+        return Option.ofNullable(hashtags)
+            .filter(h => h.length === 1)
+            .map(h => parseInt(h[0].substr(1)));
     }
     
     export function combineWithArrowIfNotEqual(str1: string | number, str2: string | number): string {

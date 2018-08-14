@@ -70,30 +70,30 @@ export module RedmineConnector {
         redmineTimeEntries: Vector<RedmineApi.TimeEntry>
     ): Promise<SyncSuccess | SyncError> {
         try {
-            let issueId = Helper
+            const issueId = Helper
                 .extractSingleHashtagNumber(togglEntry.description).getOrThrow("Missing issue hashtag");
 
-            let matchingRedmineIssue = redmineIssues
+            const matchingRedmineIssue = redmineIssues
                 .filter(x => x.id === issueId)
                 .single()
                 .getOrThrow(`No matching Redmine issue #${issueId} found`);
 
-            let spentOn = moment(togglEntry.start).format('YYYY-MM-DD');
-            let hours = Number(
+            const spentOn = moment(togglEntry.start).format('YYYY-MM-DD');
+            const hours = Number(
                 moment(togglEntry.end)
                     .diff(moment(togglEntry.start), 'hours', true)
                     .toPrecision(2)
             );
 
-            let existingMatchingEntries = redmineTimeEntries.filter(x => matchesBySuffixKey(x, togglEntry));
+            const existingMatchingEntries = redmineTimeEntries.filter(x => matchesBySuffixKey(x, togglEntry));
 
-            let paramsCreateOrUpdateTimeEntry: RedmineApi.ParamsCreateOrUpdateTimeEntry = {
+            const paramsCreateOrUpdateTimeEntry: RedmineApi.ParamsCreateOrUpdateTimeEntry = {
                 issue_id: matchingRedmineIssue.id,
                 project_id: matchingRedmineIssue.project.id,
                 hours: hours,
                 // activity_id:
                 comments: getRedmineTimeEntryDescriptionWithKey(togglEntry),
-                spent_on: moment(togglEntry.start).format('YYYY-MM-DD')
+                spent_on: spentOn
             };
                 
             if(existingMatchingEntries.isEmpty()) {
@@ -107,7 +107,7 @@ export module RedmineConnector {
                 }
             }
             else {
-                let existingEntry = existingMatchingEntries
+                const existingEntry = existingMatchingEntries
                     .single()
                     .getOrThrow(`Multiple matches found for toggl entry ${togglEntry.id}, user ${syncParams.redmineUsername}`);
 
@@ -153,7 +153,7 @@ export module RedmineConnector {
                     if (err !== null) {
                         return reject(new Error("Failed to retrieve redmine issues: " + JSON.stringify(err)));
                     }
-                    let issues = Vector.ofIterable(data.issues);
+                    const issues = Vector.ofIterable(data.issues);
                     logger.info(`Acquired ${issues.length()} Redmine issues: "${issues.map(x => x.id).mkString(',')}"`);
 
                     if (data.total_count >= data.limit) {

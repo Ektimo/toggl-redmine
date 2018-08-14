@@ -14,15 +14,11 @@ const config: Config = require('./../config.json');
 const Table = require('cli-table2');
 const nodemailer = require('nodemailer');
 
-var args = process.argv.slice(2);
-
-function getUserForTogglUserId(togglUserId: number): UserCredentialMapping {
-    return Vector.ofIterable(config.userCredentialMappings).filter(x => x.togglUserId === togglUserId).single().getOrThrow();
-}
+const args = process.argv.slice(2);
 
 async function sync() {
-    let from = moment().subtract(3,'months').startOf('month').format('YYYY-MM-DD');
-    let to = moment().endOf('month').format('YYYY-MM-DD');
+    const from = moment().subtract(3,'months').startOf('month').format('YYYY-MM-DD');
+    const to = moment().endOf('month').format('YYYY-MM-DD');
     
     let combinedSyncErrors: Vector<SyncError> = Vector.of();    
     let combinedSuccessfulSyncs: Vector<SyncSuccess> = Vector.of();
@@ -60,23 +56,27 @@ async function sync() {
             return processedEntries;
         }));
 
+    report(combinedSyncErrors, combinedSuccessfulSyncs);
+}
+
+function report(syncErrors: Vector<SyncError>, successfulSyncs: Vector<SyncSuccess>) {
     const nopTable = new Table({
-        head: ['action', 'user', 'date', '#', 'h', 'description'], 
+        head: ['action', 'user', 'date', '#', 'h', 'description'],
         colWidths: [8, 20, 12, 6, 7, 60],
         style: {compact: true},
         wordWrap: true
     });
 
-    nopTable.push(...combinedSuccessfulSyncs
+    nopTable.push(...successfulSyncs
         .filter(x => x.action === 'nop')
-        .map(x => [
-                    x.action,
-                    getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
-                    x.newEntry.spent_on,
-                    x.newEntry.issue_id,
-                    x.newEntry.hours,
-                    `'${x.newEntry.comments}'`
-        ])
+        .flatMap(x => Vector.of(
+            x.action,
+            getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
+            x.newEntry.spent_on,
+            String(x.newEntry.issue_id),
+            String(x.newEntry.hours),
+            `'${x.newEntry.comments}'`
+        ))
         .toArray());
 
     const successTable = new Table({
@@ -86,33 +86,28 @@ async function sync() {
         wordWrap: true
     });
 
-    successTable.push(...combinedSuccessfulSyncs
+    successTable.push(...successfulSyncs
         .filter(x => x.action !== 'nop')
-        .map(x => {
-            if(x.action === 'create') {
-                return [
+        .flatMap(x => {
+            return x.action === 'create' ?
+                Vector.of(
                     x.action,
                     getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                     x.newEntry.spent_on,
-                    x.newEntry.issue_id,
-                    x.newEntry.hours,
-                    `'${x.newEntry.comments}'`
-                ]
-            }
-            else if(x.action === 'update'){
-                return [
+                    String(x.newEntry.issue_id),
+                    String(x.newEntry.hours),
+                    `'${x.newEntry.comments}'`)
+                : Vector.of(
                     x.action,
                     getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                     combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().spent_on, x.newEntry.spent_on),
                     combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().issue.id, x.newEntry.issue_id),
                     combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().hours, x.newEntry.hours),
                     combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().comments, x.newEntry.comments)
-                ];
-            }
-            throw new Error("Unhandled case");
+                );
         })
         .toArray());
-    
+
     const errorTable = new Table({
         head: ['user', 'date', 'description', "ERROR message"],
         colWidths: [20, 12, 100, 75],
@@ -120,21 +115,25 @@ async function sync() {
         wordWrap: true
     });
 
-    errorTable.push(...combinedSyncErrors
+    errorTable.push(...syncErrors
         .map(x => [getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
-            moment(x.togglEntry.start).format('YYYY-MM-DD'), 
-            `'${x.togglEntry.description}'`, 
+            moment(x.togglEntry.start).format('YYYY-MM-DD'),
+            `'${x.togglEntry.description}'`,
             `'${x.errorMessage}'`])
         .toArray());
-    
+
     logger.info("Successfully checked (nop):")
     logger.info(os.EOL + nopTable.toString());
-    
+
     logger.info("Successfully synced (create/update):")
     logger.info(os.EOL + successTable.toString());
-    
+
     logger.error("Failed to sync:")
     logger.error(os.EOL + errorTable.toString());
+}
+
+function getUserForTogglUserId(togglUserId: number): UserCredentialMapping {
+    return Vector.ofIterable(config.userCredentialMappings).filter(x => x.togglUserId === togglUserId).single().getOrThrow();
 }
 
 if (args[0] === 'sync') {
@@ -142,8 +141,8 @@ if (args[0] === 'sync') {
 }
 
 if (args[0] === 'syncCron') {
-    let cronTime = '00 00 06 * * * '; 
-    let cronJob = new cron.CronJob({
+    const cronTime = '00 00 06 * * * ';
+    const cronJob = new cron.CronJob({
         cronTime: cronTime,
         onTick: function () {
             sync();
