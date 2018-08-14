@@ -1,0 +1,14 @@
+{
+    "redmineApiToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "redmineBaseUrl": "http://localhost:3000/",
+    "adminNotificationsEmail": "xxxxxxxxxxxx@xxxxxx.xxx",
+    "userCredentialMappings": [
+        {
+            "togglApiToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "togglWorkspaceId": 0000000,
+            "togglUserId": 0000000,
+            "redmineUsername": "impersonated.one",
+            "notificationsEmail": "xxxxxxxxxxxx@xxxxxx.xxx"
+        }
+    ]
+}
