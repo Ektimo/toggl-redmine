@@ -17,3 +17,6 @@ package-lock.json
 
 # compiled TS target dir
 /built
+
+# sensitive stuff
+config.json
