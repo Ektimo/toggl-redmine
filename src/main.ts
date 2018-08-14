@@ -17,7 +17,7 @@ const nodemailer = require('nodemailer');
 const args = process.argv.slice(2);
 
 async function sync() {
-    const from = moment().subtract(3,'months').startOf('month').format('YYYY-MM-DD');
+    const from = moment().subtract(1,'months').startOf('month').format('YYYY-MM-DD');
     const to = moment().endOf('month').format('YYYY-MM-DD');
     
     let combinedSyncErrors: Vector<SyncError> = Vector.of();    

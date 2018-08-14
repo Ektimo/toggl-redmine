@@ -18,7 +18,7 @@ export module RedmineConnector {
     // Redmine API docs: 
     // offset: the offset of the first object to retrieve
     // limit: the number of items to be present in the response (default is 25, maximum is 100)
-    const queryPageLimit = 5;
+    const queryPageLimit = 100;
     
     export interface SyncSuccess {
         togglEntry: TogglApi.TimeEntry;
