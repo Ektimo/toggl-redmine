@@ -28,7 +28,8 @@ export module RedmineConnector {
     }
 
     export interface SyncError {
-        togglEntry: TogglApi.TimeEntry;
+        togglUserId: number;
+        entry: TogglApi.TimeEntry | RedmineApi.TimeEntry;
         errorMessage: string;
     }
 
@@ -44,22 +45,59 @@ export module RedmineConnector {
         return togglEntry.description + ` [${togglEntry.id}]`
     }
     
+    function getRedmineUserById(redmineUsers: Vector<RedmineApi.User>, id: number) {
+        return redmineUsers.filter(x => x.id === id).single().getOrThrow();
+    }
+    
     export async function syncTogglEnties(syncParams: SyncParameters, togglEntries: Vector<TogglApi.TimeEntry>): Promise<Vector<SyncSuccess | SyncError>> {
+        const referencedIssueIds = togglEntries
+            .mapOption(x => Helper.extractSingleHashtagNumber(x.description))
+            .distinctBy(x => x);
+
+        logger.info(`Querying Redmine users`);
+        // call with non-impersonating client
+        const redmineUsers = await queryRedmineUsers(<RedmineApi.Client>new Redmine(syncParams.baseUrl, { apiKey: syncParams.apiToken}));
+        logger.info(`Acquired ${redmineUsers.length()} Redmine users: "${redmineUsers.map(x => x.login).mkString(', ')}"`);
+
+        // logger.info(`Impersonating user ${syncParams.redmineUsername}`);
+        // redmineApiClient.impersonate = syncParams.redmineUsername;
+
         logger.info(`Creating Redmine client, impersonating user ${syncParams.redmineUsername}`);
-        let redmineApiClient = <RedmineApi.Client>new Redmine(syncParams.baseUrl, { apiKey: syncParams.apiToken, impersonate: syncParams.redmineUsername});
+        const redmineApiClient = <RedmineApi.Client>new Redmine(syncParams.baseUrl, { apiKey: syncParams.apiToken, impersonate: syncParams.redmineUsername});
         
-        let referencedIssueIds = togglEntries
-            .mapOption(x => Helper.extractSingleHashtagNumber(x.description));
-        
-        let redmineIssues = await queryRedmineIssues(redmineApiClient, referencedIssueIds);
-        let redmineTimeEntries = await queryRedmineTimeEntries(redmineApiClient, 1);
-                
+        logger.info(`Querying ${referencedIssueIds.length()} Redmine issues: "${referencedIssueIds.mkString(', ')}"`);
+        const redmineIssues = await queryRedmineIssues(redmineApiClient, referencedIssueIds);
+        logger.info(`Acquired ${redmineIssues.length()} Redmine issues: "${redmineIssues.map(x => x.id).mkString(', ')}"`);
+
+        logger.info(`Querying Redmine time entries`);
+        const redmineTimeEntries = await queryRedmineTimeEntries(redmineApiClient);
+        logger.info(`Acquired ${redmineTimeEntries.length()} Redmine time entries`);
+
         return Vector.ofIterable(
+            //process all Toggl entries (check/sync to redmine)
             await Promise.all(
-                togglEntries.map(async x => await syncTogglEntry(redmineApiClient, syncParams, x, redmineIssues, redmineTimeEntries)
-                )
+                togglEntries.map(async togglEntry => await syncTogglEntry(
+                    redmineApiClient, 
+                    syncParams, 
+                    togglEntry, 
+                    redmineIssues, 
+                    redmineTimeEntries.filter(redmineEntry => getRedmineUserById(redmineUsers, redmineEntry.user.id).login === syncParams.redmineUsername)))
             )
-        );
+        ).appendAll(
+            //process all Redmine entries (detech possibly deleted entries)
+            redmineTimeEntries
+                .filter(redmineEntry => redmineEntry.comments.match(/\[[0-9]+\]/g) !== null) // filter by those ending with '[number]'
+                .filter(redmineEntry => getRedmineUserById(redmineUsers, redmineEntry.user.id).login === syncParams.redmineUsername) // filter by current user
+                .filter(redmineEntry => ! togglEntries.anyMatch(togglEntry => matchesBySuffixKey(redmineEntry, togglEntry))) // filter by missing a corresponding toggl entry
+                .map(redmineEntry => { return {
+                    togglUserId: syncParams.togglUserId,
+                    entry: redmineEntry, 
+                    errorMessage: "No corresponding Toggl entry for Redmine entry (Deleted toggl entry after it was synced to redmine? If yes, go and delete it manually in redmine as well.)"} })
+        ).sortBy((x, y) => {
+            const ts1 = isSyncError(x) ? (Helper.isTogglEntry(x.entry) ? moment(x.entry.start).valueOf() : moment(x.entry.spent_on).valueOf()) : moment(x.togglEntry.start).valueOf();
+            const ts2 = isSyncError(y) ? (Helper.isTogglEntry(y.entry) ? moment(y.entry.start).valueOf() : moment(y.entry.spent_on).valueOf()) : moment(y.togglEntry.start).valueOf();
+            return ts2 - ts1;
+        });
     }
 
     async function syncTogglEntry(
@@ -99,7 +137,7 @@ export module RedmineConnector {
             if(existingMatchingEntries.isEmpty()) {
                 await createRedmineTimeEntry(redmineApiClient, paramsCreateOrUpdateTimeEntry);
 
-                return <SyncSuccess>{
+                return {
                     togglEntry: togglEntry,
                     existingEntry: null,
                     newEntry: paramsCreateOrUpdateTimeEntry,
@@ -118,7 +156,7 @@ export module RedmineConnector {
                     existingEntry.spent_on !== paramsCreateOrUpdateTimeEntry.spent_on) {
                     await updateRedmineTimeEntry(redmineApiClient, existingEntry.id, paramsCreateOrUpdateTimeEntry);
 
-                    return <SyncSuccess>{
+                    return {
                         togglEntry: togglEntry,
                         existingEntry: existingEntry,
                         newEntry: paramsCreateOrUpdateTimeEntry,
@@ -126,55 +164,78 @@ export module RedmineConnector {
                     }
                 }
 
-                return <SyncSuccess>{
+                return {
                     togglEntry: togglEntry,
                     existingEntry: existingEntry,
                     newEntry: paramsCreateOrUpdateTimeEntry,
                     action: "nop"
-                }    
+                }
             }
             
             throw new Error("Broken sync code, this line should be unreachable.")
         }
         catch (error) {
-            return <SyncError>{
-                togglEntry: togglEntry,
+            return {
+                togglUserId: syncParams.togglUserId,
+                entry: togglEntry,
                 errorMessage: error
             };
         }
     }
 
-    async function queryRedmineIssues(redmineApiClient: RedmineApi.Client, issueIds: Vector<number>) {
-        return new Promise<Vector<RedmineApi.Issue>>((resolve, reject) => {
-            let commaSeparatedIssueIds = issueIds.mkString(',');
-            logger.info(`Querying ${issueIds.length()} Redmine issues: "${commaSeparatedIssueIds}"`);
-            redmineApiClient.issues({limit: queryPageLimit, issue_id: commaSeparatedIssueIds},
-                (err: any, data: RedmineApi.Issues) => {
+    async function queryRedmineUsers(redmineApiClient: RedmineApi.Client, page = 1) {
+        return new Promise<Vector<RedmineApi.User>>((resolve, reject) => {
+            redmineApiClient.users({limit: queryPageLimit},
+                async (err: any, data: RedmineApi.Users) => {
                     if (err !== null) {
-                        return reject(new Error("Failed to retrieve redmine issues: " + JSON.stringify(err)));
+                        const errorMsg = "Failed to retrieve redmine users: " + JSON.stringify(err);
+                        logger.error(errorMsg);
+                        return reject(new Error(errorMsg));
                     }
-                    const issues = Vector.ofIterable(data.issues);
-                    logger.info(`Acquired ${issues.length()} Redmine issues: "${issues.map(x => x.id).mkString(',')}"`);
+                    let usersTail = Vector.ofIterable(data.users);
 
-                    if (data.total_count >= data.limit) {
-                        return reject(new Error(`Not implemented: Toggle entries reference ${data.total_count}, which is more than one page of Redmine issues.`))
+                    if (page * data.limit < data.total_count) {
+                        const usersNextPage = await queryRedmineUsers(redmineApiClient, page + 1);
+                        usersTail = usersTail.appendAll(usersNextPage);
                     }
 
-                    resolve(issues);
+                    resolve(usersTail);
                 });
         })
     }
 
-    async function queryRedmineTimeEntries(redmineApiClient: RedmineApi.Client, page: number) {
-        return new Promise<Vector<RedmineApi.TimeEntry>>((resolve, reject) => {
-            logger.info(`Querying time entries page ${page}`)
-            redmineApiClient.time_entries({limit: queryPageLimit, offset: (page - 1) * queryPageLimit},
-                async function (err: any, data: RedmineApi.TimeEntries) {
+    async function queryRedmineIssues(redmineApiClient: RedmineApi.Client, issueIds: Vector<number>, page = 1) {
+        return new Promise<Vector<RedmineApi.Issue>>((resolve, reject) => {
+            let commaSeparatedIssueIds = issueIds.mkString(',');
+            redmineApiClient.issues({limit: queryPageLimit, issue_id: commaSeparatedIssueIds},
+                async (err: any, data: RedmineApi.Issues) => {
                     if (err !== null) {
-                        return reject(new Error("Failed to retrieve redmine time entries: " + JSON.stringify(err)));
+                        const errorMsg = "Failed to retrieve redmine issues: " + JSON.stringify(err);
+                        logger.error(errorMsg);
+                        return reject(new Error(errorMsg));
+                    }
+                    let issuesTail = Vector.ofIterable(data.issues);
+
+                    if (page * data.limit < data.total_count) {
+                        const issuesNextPage = await queryRedmineIssues(redmineApiClient, issueIds, page + 1);
+                        issuesTail = issuesTail.appendAll(issuesNextPage);
+                    }
+                    
+                    resolve(issuesTail);
+                });
+        })
+    }
+
+    async function queryRedmineTimeEntries(redmineApiClient: RedmineApi.Client, page = 1) {
+        return new Promise<Vector<RedmineApi.TimeEntry>>((resolve, reject) => {
+            redmineApiClient.time_entries({limit: queryPageLimit, offset: (page - 1) * queryPageLimit},
+                async (err: any, data: RedmineApi.TimeEntries) => {
+                    if (err !== null) {
+                        const errorMsg = "Failed to retrieve redmine time entries: " + JSON.stringify(err);
+                        logger.error(errorMsg);
+                        return reject(new Error(errorMsg));
                     }
                     let timeEntriesTail = Vector.ofIterable(data.time_entries);
-                    logger.info(`Acquired ${timeEntriesTail.length()} time entries`);
 
                     if (page * data.limit < data.total_count) {
                         const timeEntriesNextPage = await queryRedmineTimeEntries(redmineApiClient, page + 1);
@@ -192,7 +253,9 @@ export module RedmineConnector {
             redmineApiClient.create_time_entry({time_entry: params},
                 (err: any) => {
                     if (err !== null) {
-                        return reject(new Error("Failed to create redmine time entry: " + JSON.stringify(err)));
+                        const errorMsg = "Failed to create redmine time entry: " + JSON.stringify(err);
+                        logger.error(errorMsg);
+                        return reject(new Error(errorMsg));
                     }
                     logger.info(`Successfully created time entry"`);
                     resolve();
@@ -206,7 +269,9 @@ export module RedmineConnector {
             redmineApiClient.update_time_entry(timeEntryId, {time_entry: params},
                 (err: any) => {
                     if (err !== null) {
-                        return reject(new Error("Failed to update redmine time entry: " + JSON.stringify(err)));
+                        const errorMsg = "Failed to update redmine time entry: " + JSON.stringify(err);
+                        logger.error(errorMsg);
+                        return reject(new Error(errorMsg));
                     }
                     logger.info(`Successfully updated time entry`)
                     resolve();

@@ -9,7 +9,7 @@ export module Helper {
     }
     
     export function extractSingleHashtagNumber(value: string): Option<number>{
-        let hashtags: RegExpMatchArray | null = value.match(/#[0-9]+/gi);
+        let hashtags: RegExpMatchArray | null = value.match(/#[0-9]+/g);
         return Option.ofNullable(hashtags)
             .filter(h => h.length === 1)
             .map(h => parseInt(h[0].substr(1)));
@@ -18,6 +18,11 @@ export module Helper {
     export function combineWithArrowIfNotEqual(str1: string | number, str2: string | number): string {
         return String(str1) === String(str2) ? String(str1) : str1 + ' --> ' + str2;
     }
+
+    export function isTogglEntry(item: TogglApi.TimeEntry | RedmineApi.TimeEntry ): item is TogglApi.TimeEntry {
+        return (<TogglApi.TimeEntry>item).uid !== undefined;
+    }
+    
     // export function truncateStringWithEllipses(str: string, maxLen: number): string {
     //     return str.substr(0,maxLen - 1)+(str.length > maxLen ? '...' : '');
     // }

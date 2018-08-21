@@ -3,6 +3,11 @@
 declare module RedmineApi {
     
     interface Client {
+        // impersonate: string;
+        
+        users: (params: QueryParamsUsers,
+                 callback: (err: any, data: RedmineApi.Users) => void ) => void;
+        
         issues: (params: QueryParamsIssues, 
                  callback: (err: any, data: RedmineApi.Issues) => void ) => void;
 
@@ -21,6 +26,17 @@ declare module RedmineApi {
         limit?: number;
         offset?: number;
     }
+
+    interface QueryParamsUsers extends QueryParams {
+        // get only users with the given status. See app/models/principal.rb for a list of available statuses. Default is 1 (active users). Possible values are:
+        //     1: Active (User can login and use their account)
+        // 2: Registered (User has registered but not yet confirmed their email address or was not yet activated by an administrator. User can not login)
+        // 3: Locked (User was once active and is now locked, User can not login)
+        status?: string;   
+        
+        name?: string; // filter users on their login, firstname, lastname and mail ; if the pattern contains a space, it will also return users whose firstname match the first word or lastname match the second word
+        group_id?: number; //get only users who are members of the given group
+    }
     
     interface QueryParamsIssues extends QueryParams {
         issue_id?: string; //comma separated issue ids   
@@ -37,6 +53,24 @@ declare module RedmineApi {
         hours: number; // (required): the number of spent hours
         activity_id?: number; //the id of the time activity. This parameter is required unless a default activity is defined in Redmine.
         comments: string; // short description for the entry (255 characters max)
+    }
+
+    // =========== USER =========== 
+
+    interface User {
+        id: number;
+        login: string;
+        firstname: string;
+        lastname: string;
+        mail: string;
+        // THERE IS MORE ... (incomplete interface here, it suffices)
+    }
+
+    interface Users {
+        users: User[];
+        total_count: number;
+        offset: number;
+        limit: number;
     }
     
     // =========== ISSUE =========== 
