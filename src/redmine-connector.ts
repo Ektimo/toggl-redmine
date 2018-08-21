@@ -46,7 +46,7 @@ export module RedmineConnector {
     }
     
     function getRedmineUserById(redmineUsers: Vector<RedmineApi.User>, id: number) {
-        return redmineUsers.filter(x => x.id === id).single().getOrThrow();
+        return redmineUsers.filter(x => x.id === id).single().getOrThrow(`User with id ${id} not found among queried redmine users`);
     }
     
     export async function syncTogglEnties(syncParams: SyncParameters, togglEntries: Vector<TogglApi.TimeEntry>): Promise<Vector<SyncSuccess | SyncError>> {
@@ -59,6 +59,7 @@ export module RedmineConnector {
         const redmineUsers = await queryRedmineUsers(<RedmineApi.Client>new Redmine(syncParams.baseUrl, { apiKey: syncParams.apiToken}));
         logger.info(`Acquired ${redmineUsers.length()} Redmine users: "${redmineUsers.map(x => x.login).mkString(', ')}"`);
 
+        const redmineUser = redmineUsers.filter(x => x.login === syncParams.redmineUsername).single().getOrThrow(`User ${syncParams.redmineUsername} not found in redmine`);
         // logger.info(`Impersonating user ${syncParams.redmineUsername}`);
         // redmineApiClient.impersonate = syncParams.redmineUsername;
 
@@ -70,7 +71,7 @@ export module RedmineConnector {
         logger.info(`Acquired ${redmineIssues.length()} Redmine issues: "${redmineIssues.map(x => x.id).mkString(', ')}"`);
 
         logger.info(`Querying Redmine time entries`);
-        const redmineTimeEntries = await queryRedmineTimeEntries(redmineApiClient);
+        const redmineTimeEntries = await queryRedmineTimeEntries(redmineApiClient, syncParams.from, syncParams.to, redmineUser.id);
         logger.info(`Acquired ${redmineTimeEntries.length()} Redmine time entries`);
 
         return Vector.ofIterable(
@@ -185,7 +186,7 @@ export module RedmineConnector {
 
     async function queryRedmineUsers(redmineApiClient: RedmineApi.Client, page = 1) {
         return new Promise<Vector<RedmineApi.User>>((resolve, reject) => {
-            redmineApiClient.users({limit: queryPageLimit},
+            redmineApiClient.users({limit: queryPageLimit, offset: (page - 1) * queryPageLimit},
                 async (err: any, data: RedmineApi.Users) => {
                     if (err !== null) {
                         const errorMsg = "Failed to retrieve redmine users: " + JSON.stringify(err);
@@ -207,7 +208,7 @@ export module RedmineConnector {
     async function queryRedmineIssues(redmineApiClient: RedmineApi.Client, issueIds: Vector<number>, page = 1) {
         return new Promise<Vector<RedmineApi.Issue>>((resolve, reject) => {
             let commaSeparatedIssueIds = issueIds.mkString(',');
-            redmineApiClient.issues({limit: queryPageLimit, issue_id: commaSeparatedIssueIds},
+            redmineApiClient.issues({limit: queryPageLimit, issue_id: commaSeparatedIssueIds, offset: (page - 1) * queryPageLimit},
                 async (err: any, data: RedmineApi.Issues) => {
                     if (err !== null) {
                         const errorMsg = "Failed to retrieve redmine issues: " + JSON.stringify(err);
@@ -226,9 +227,9 @@ export module RedmineConnector {
         })
     }
 
-    async function queryRedmineTimeEntries(redmineApiClient: RedmineApi.Client, page = 1) {
+    async function queryRedmineTimeEntries(redmineApiClient: RedmineApi.Client, from: string, to: string, userId: number, page = 1) {
         return new Promise<Vector<RedmineApi.TimeEntry>>((resolve, reject) => {
-            redmineApiClient.time_entries({limit: queryPageLimit, offset: (page - 1) * queryPageLimit},
+            redmineApiClient.time_entries({limit: queryPageLimit, user_id: userId, spent_on: `><${from}|${to}`, offset: (page - 1) * queryPageLimit},
                 async (err: any, data: RedmineApi.TimeEntries) => {
                     if (err !== null) {
                         const errorMsg = "Failed to retrieve redmine time entries: " + JSON.stringify(err);
@@ -238,7 +239,7 @@ export module RedmineConnector {
                     let timeEntriesTail = Vector.ofIterable(data.time_entries);
 
                     if (page * data.limit < data.total_count) {
-                        const timeEntriesNextPage = await queryRedmineTimeEntries(redmineApiClient, page + 1);
+                        const timeEntriesNextPage = await queryRedmineTimeEntries(redmineApiClient, from, to, page + 1);
                         timeEntriesTail = timeEntriesTail.appendAll(timeEntriesNextPage);                        
                     }
 

@@ -36,22 +36,20 @@ export module Report {
 
     function getNopTable(successfulSyncs: Vector<SyncSuccess>, colors = true) {
         const nopTable = new Table({
-            head: ['action', 'user', 'date', '#', 'h', 'description'],
-            colWidths: [8, 20, 12, 6, 7, 60],
+            head: ['user', 'date', '#', 'h', 'description'],
+            colWidths: [20, 12, 6, 7, 100],
             style: colors ? tableColorStyle : tablePlainStyle,
             wordWrap: true
         });
 
         nopTable.push(...successfulSyncs
             .filter(x => x.action === 'nop')
-            .flatMap(x => Vector.of(
-                x.action,
-                getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
+            .map(x => [getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                 x.newEntry.spent_on,
                 String(x.newEntry.issue_id),
                 String(x.newEntry.hours),
                 `'${x.newEntry.comments}'`
-            ))
+            ])
             .toArray());
 
         return nopTable;
@@ -67,23 +65,23 @@ export module Report {
 
         successTable.push(...successfulSyncs
             .filter(x => x.action !== 'nop')
-            .flatMap(x => {
+            .map(x => {
                 return x.action === 'create' ?
-                    Vector.of(
+                    [
                         x.action,
                         getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                         x.newEntry.spent_on,
                         String(x.newEntry.issue_id),
                         String(x.newEntry.hours),
-                        `'${x.newEntry.comments}'`)
-                    : Vector.of(
+                        `'${x.newEntry.comments}'`]
+                    : [
                         x.action,
                         getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().spent_on, x.newEntry.spent_on),
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().issue.id, x.newEntry.issue_id),
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().hours, x.newEntry.hours),
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().comments, x.newEntry.comments)
-                    );
+                    ];
             })
             .toArray());
 

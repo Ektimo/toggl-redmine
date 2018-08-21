@@ -11,7 +11,7 @@ declare module RedmineApi {
         issues: (params: QueryParamsIssues, 
                  callback: (err: any, data: RedmineApi.Issues) => void ) => void;
 
-        time_entries: (params: QueryParams,
+        time_entries: (params: QueryParamsTimeEntries,
                  callback: (err: any, data: RedmineApi.TimeEntries) => void ) => void;
         
         create_time_entry: (params: ParamsCreateOrUpdateTimeEntryWrapped,
@@ -40,6 +40,12 @@ declare module RedmineApi {
     
     interface QueryParamsIssues extends QueryParams {
         issue_id?: string; //comma separated issue ids   
+    }
+
+    interface QueryParamsTimeEntries extends QueryParams {
+        user_id?: number;   
+        project_id?: number
+        spent_on?: string; // limit by dates: '><YYYY-MM-DD|YYYY-MM-DD'
     }
     
     interface ParamsCreateOrUpdateTimeEntryWrapped {
