@@ -1,7 +1,7 @@
 {
     "redmineApiToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "redmineBaseUrl": "http://localhost:3000/",
-    "adminNotificationsEmail": "xxxxxxxxxxxx@xxxxxx.xxx",
+    "adminNotificationsEmail": "xxxxxxxxxxxx@xxxxxx.xxx, yyyyyyyyyy@xxxxxx.xxx",
     "userCredentialMappings": [
         {
             "togglApiToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",

@@ -37,7 +37,7 @@ export module Report {
     function getNopTable(successfulSyncs: Vector<SyncSuccess>, colors = true) {
         const nopTable = new Table({
             head: ['user', 'date', '#', 'h', 'description'],
-            colWidths: [20, 12, 6, 7, 100],
+            colWidths: [20, 12, 20, 6, 7, 100],
             style: colors ? tableColorStyle : tablePlainStyle,
             wordWrap: true
         });
@@ -46,6 +46,7 @@ export module Report {
             .filter(x => x.action === 'nop')
             .map(x => [getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                 x.newEntry.spent_on,
+                Helper.truncateStringWithEllipses(x.redmineIssue.project.name, 15),
                 String(x.newEntry.issue_id),
                 String(x.newEntry.hours),
                 `'${x.newEntry.comments}'`
@@ -57,8 +58,8 @@ export module Report {
 
     function getSuccessTable(successfulSyncs: Vector<SyncSuccess>, colors = true) {
         const successTable = new Table({
-            head: ['action', 'user', 'date', '#', 'h', 'description'],
-            colWidths: [8, 20, 27, 15, 17, 120],
+            head: ['action', 'user', 'date', 'project', '#', 'h', 'description'],
+            colWidths: [8, 20, 27, 20, 15, 17, 120],
             style: colors ? tableColorStyle : tablePlainStyle,
             wordWrap: true
         });
@@ -71,6 +72,7 @@ export module Report {
                         x.action,
                         getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                         x.newEntry.spent_on,
+                        Helper.truncateStringWithEllipses(x.redmineIssue.project.name, 15),
                         String(x.newEntry.issue_id),
                         String(x.newEntry.hours),
                         `'${x.newEntry.comments}'`]
@@ -78,6 +80,9 @@ export module Report {
                         x.action,
                         getUserForTogglUserId(x.togglEntry.uid).redmineUsername,
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().spent_on, x.newEntry.spent_on),
+                        combineWithArrowIfNotEqual(
+                            Helper.truncateStringWithEllipses(Option.ofNullable(x.existingEntry).getOrThrow().project.name, 15), 
+                            Helper.truncateStringWithEllipses(x.redmineIssue.project.name, 15)),
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().issue.id, x.newEntry.issue_id),
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().hours, x.newEntry.hours),
                         combineWithArrowIfNotEqual(Option.ofNullable(x.existingEntry).getOrThrow().comments, x.newEntry.comments)

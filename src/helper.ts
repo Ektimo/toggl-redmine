@@ -23,7 +23,7 @@ export module Helper {
         return (<TogglApi.TimeEntry>item).uid !== undefined;
     }
     
-    // export function truncateStringWithEllipses(str: string, maxLen: number): string {
-    //     return str.substr(0,maxLen - 1)+(str.length > maxLen ? '...' : '');
-    // }
+    export function truncateStringWithEllipses(str: string, maxLen: number): string {
+        return str.substr(0,maxLen - 1)+(str.length > maxLen ? '...' : '');
+    }
 }

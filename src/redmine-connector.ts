@@ -24,6 +24,7 @@ export module RedmineConnector {
         togglEntry: TogglApi.TimeEntry;
         existingEntry: RedmineApi.TimeEntry | null;
         newEntry: RedmineApi.ParamsCreateOrUpdateTimeEntry;
+        redmineIssue: RedmineApi.Issue;
         action: 'create' | 'update' | 'nop';
     }
 
@@ -142,6 +143,7 @@ export module RedmineConnector {
                     togglEntry: togglEntry,
                     existingEntry: null,
                     newEntry: paramsCreateOrUpdateTimeEntry,
+                    redmineIssue: matchingRedmineIssue,
                     action: "create"
                 }
             }
@@ -161,6 +163,7 @@ export module RedmineConnector {
                         togglEntry: togglEntry,
                         existingEntry: existingEntry,
                         newEntry: paramsCreateOrUpdateTimeEntry,
+                        redmineIssue: matchingRedmineIssue,
                         action: "update"
                     }
                 }
@@ -169,6 +172,7 @@ export module RedmineConnector {
                     togglEntry: togglEntry,
                     existingEntry: existingEntry,
                     newEntry: paramsCreateOrUpdateTimeEntry,
+                    redmineIssue: matchingRedmineIssue,
                     action: "nop"
                 }
             }
