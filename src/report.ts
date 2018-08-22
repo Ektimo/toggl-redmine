@@ -36,7 +36,7 @@ export module Report {
 
     function getNopTable(successfulSyncs: Vector<SyncSuccess>, colors = true) {
         const nopTable = new Table({
-            head: ['user', 'date', '#', 'h', 'description'],
+            head: ['user', 'date', 'project', '#', 'h', 'description'],
             colWidths: [20, 12, 20, 6, 7, 100],
             style: colors ? tableColorStyle : tablePlainStyle,
             wordWrap: true
