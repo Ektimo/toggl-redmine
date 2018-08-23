@@ -1,10 +1,14 @@
 import {Helper} from "./helper";
-import {Vector} from "prelude.ts";
+import {Option, Vector} from "prelude.ts";
 import moment = require("moment");
 import logger from "./logger";
+import {config} from "winston";
+import {sync} from "mkdirp";
 let Redmine = require('node-redmine');
 
 export module RedmineConnector {
+
+    import combineWithArrowIfNotEqual = Helper.combineWithArrowIfNotEqual;
 
     export interface SyncParameters {
         apiToken: string;
@@ -13,6 +17,7 @@ export module RedmineConnector {
         to: string; //YYYY-MM-DD format
         togglUserId: number;
         redmineUsername: string;
+        lastMonthSyncExpiryDays: number;
     }
     
     // Redmine API docs: 
@@ -38,16 +43,26 @@ export module RedmineConnector {
         return (<SyncError>item).errorMessage !== undefined;
     }
     
-    function matchesBySuffixKey(redmineTimeEntry: RedmineApi.TimeEntry, togglEntry: TogglApi.TimeEntry) {
+    function matchesBySuffixKey(redmineTimeEntry: RedmineApi.TimeEntry, togglEntry: TogglApi.TimeEntry): boolean {
         return redmineTimeEntry.comments.endsWith(`[${togglEntry.id}]`)
     }
     
-    function getRedmineTimeEntryDescriptionWithKey(togglEntry: TogglApi.TimeEntry) {
+    function getRedmineTimeEntryDescriptionWithKey(togglEntry: TogglApi.TimeEntry): string {
         return togglEntry.description + ` [${togglEntry.id}]`
     }
     
-    function getRedmineUserById(redmineUsers: Vector<RedmineApi.User>, id: number) {
+    function getRedmineUserById(redmineUsers: Vector<RedmineApi.User>, id: number): RedmineApi.User {
         return redmineUsers.filter(x => x.id === id).single().getOrThrow(`User with id ${id} not found among queried redmine users`);
+    }
+    
+    function isSpentOnViolatingLastMonthSyncExpiryDays(spentOn: string, syncParams: SyncParameters): boolean {
+        const startOfMonth = moment().startOf('month');
+        //throw if an entry from previous month was updated after the previous month sync expiry period
+        if(moment().isAfter(startOfMonth.add(syncParams.lastMonthSyncExpiryDays, 'days')) &&
+            moment(spentOn).isBefore(startOfMonth)) {
+            return true;
+        }
+        return false;            
     }
     
     export async function syncTogglEnties(syncParams: SyncParameters, togglEntries: Vector<TogglApi.TimeEntry>): Promise<Vector<SyncSuccess | SyncError>> {
@@ -137,6 +152,10 @@ export module RedmineConnector {
             };
                 
             if(existingMatchingEntries.isEmpty()) {
+                if(isSpentOnViolatingLastMonthSyncExpiryDays(paramsCreateOrUpdateTimeEntry.spent_on, syncParams)) {
+                    throw new Error(`Last month sync period expired, skipped creating entry.`)
+                }
+                
                 await createRedmineTimeEntry(redmineApiClient, paramsCreateOrUpdateTimeEntry);
 
                 return {
@@ -157,6 +176,18 @@ export module RedmineConnector {
                     existingEntry.hours !== paramsCreateOrUpdateTimeEntry.hours ||
                     existingEntry.comments !== paramsCreateOrUpdateTimeEntry.comments ||
                     existingEntry.spent_on !== paramsCreateOrUpdateTimeEntry.spent_on) {
+                    
+                    if(isSpentOnViolatingLastMonthSyncExpiryDays(existingEntry.spent_on, syncParams) ||
+                        isSpentOnViolatingLastMonthSyncExpiryDays(paramsCreateOrUpdateTimeEntry.spent_on, syncParams)) {
+
+                        const diffReadableString = `${combineWithArrowIfNotEqual(existingEntry.spent_on, paramsCreateOrUpdateTimeEntry.spent_on)}, ` +
+                            `${combineWithArrowIfNotEqual(existingEntry.issue.id, paramsCreateOrUpdateTimeEntry.issue_id)}, ` +
+                            `${combineWithArrowIfNotEqual(existingEntry.hours, paramsCreateOrUpdateTimeEntry.hours)}, ` +
+                            `${combineWithArrowIfNotEqual(existingEntry.comments, paramsCreateOrUpdateTimeEntry.comments)}`;
+
+                        throw new Error(`Last month sync period expired, skipped updating entry, attempted update: ${diffReadableString}.`)
+                    }
+                    
                     await updateRedmineTimeEntry(redmineApiClient, existingEntry.id, paramsCreateOrUpdateTimeEntry);
 
                     return {

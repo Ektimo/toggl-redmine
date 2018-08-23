@@ -42,7 +42,8 @@ async function sync() {
                     from: from,
                     to: to,
                     redmineUsername: userConfig.redmineUsername,
-                    togglUserId: userConfig.togglUserId
+                    togglUserId: userConfig.togglUserId,
+                    lastMonthSyncExpiryDays: config.lastMonthSyncExpiryDays
                 },
                 togglEntries);
             const [syncErrors, successfulSyncs] = processedEntries.partition(RedmineConnector.isSyncError);
