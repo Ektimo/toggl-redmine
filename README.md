@@ -1,5 +1,5 @@
 # toggl-redmine
-Simple non-destructive Toggl API to Redmine API sync tool with update capability
+Non-destructive Toggl API to Redmine API sync tool with update capability and error reporting
 
 Features:
 * Idempotent, no database (time entry matching by appendix `[id]` at the end of redmine time entry description) 
