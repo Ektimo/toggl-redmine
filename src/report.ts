@@ -59,7 +59,7 @@ export module Report {
     function getSuccessTable(successfulSyncs: Vector<SyncSuccess>, colors = true) {
         const successTable = new Table({
             head: ['action', 'user', 'date', 'project', '#', 'h', 'description'],
-            colWidths: [8, 20, 27, 20, 15, 17, 120],
+            colWidths: [8, 20, 27, 20, 15, 17, 100],
             style: colors ? tableColorStyle : tablePlainStyle,
             wordWrap: true
         });
