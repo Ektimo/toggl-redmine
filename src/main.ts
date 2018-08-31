@@ -21,14 +21,15 @@ async function sync() {
     await Promise.all(Vector.ofIterable(config.userCredentialMappings)
         .map(async userConfig => {
             logger.info(`Querying Toggl data for user ${userConfig.redmineUsername}, from ${from} to ${to}`);
-            const togglEntries = await TogglConnector
+            const togglEntries = (await TogglConnector
                 .getTogglEntries({
                     apiToken: userConfig.togglApiToken,
                     from: from,
                     to: to,
                     userId: userConfig.togglUserId,
                     workspaceId: userConfig.togglWorkspaceId
-                });
+                }))
+                .filter(x => !x.description.includes("#ignore"));
 
             togglEntries.filter(x => x.uid !== userConfig.togglUserId)
                 .forEach(x => { throw new Error(`Expected time entries with user ID ${userConfig.togglUserId} (${userConfig.redmineUsername}), but got ${x.uid}`) });
