@@ -27,7 +27,7 @@ export module TogglConnector {
                 workspace_id: queryParams.workspaceId,
                 since: queryParams.from,
                 until: queryParams.to,
-                // user_ids: String(queryParams.userId),
+                user_ids: String(queryParams.userId),
                 //order_field: 'date', //currently sorting doesn't work
                 //order_desc: 'off',
                 page: page
