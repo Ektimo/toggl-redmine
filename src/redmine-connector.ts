@@ -141,7 +141,7 @@ export module RedmineConnector {
             const hours = Number(
                 moment(togglEntry.end)
                     .diff(moment(togglEntry.start), 'hours', true)
-                    .toPrecision(2)
+                    .toFixed(2)
             );
 
             const existingMatchingEntries = redmineTimeEntries.filter(x => matchesBySuffixKey(x, togglEntry));
