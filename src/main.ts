@@ -44,7 +44,8 @@ async function sync() {
                     to: to,
                     redmineUsername: userConfig.redmineUsername,
                     togglUserId: userConfig.togglUserId,
-                    lastMonthSyncExpiryDays: config.lastMonthSyncExpiryDays
+                    lastMonthSyncExpiryDays: config.lastMonthSyncExpiryDays,
+                    updateEntriesAsAdminUser: config.updateEntriesAsAdminUser
                 },
                 togglEntries);
             const [syncErrors, successfulSyncs] = processedEntries.partition(RedmineConnector.isSyncError);

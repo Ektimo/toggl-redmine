@@ -10,6 +10,7 @@ export interface Config {
     redmineApiToken: string;
     redmineBaseUrl: string;
     lastMonthSyncExpiryDays: number;
+    updateEntriesAsAdminUser: boolean;
     adminNotificationsEmail: string;
     smtpServer: string;
     smtpPassword: string;

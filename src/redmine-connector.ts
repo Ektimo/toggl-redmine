@@ -18,6 +18,7 @@ export module RedmineConnector {
         togglUserId: number;
         redmineUsername: string;
         lastMonthSyncExpiryDays: number;
+        updateEntriesAsAdminUser: boolean;
     }
     
     // Redmine API docs: 
@@ -72,7 +73,8 @@ export module RedmineConnector {
 
         logger.info(`Querying Redmine users`);
         // call with non-impersonating client
-        const redmineUsers = await queryRedmineUsers(<RedmineApi.Client>new Redmine(syncParams.baseUrl, { apiKey: syncParams.apiToken}));
+        const redmineApiAdminClient = <RedmineApi.Client>new Redmine(syncParams.baseUrl, { apiKey: syncParams.apiToken});
+        const redmineUsers = await queryRedmineUsers(redmineApiAdminClient);
         logger.info(`Acquired ${redmineUsers.length()} Redmine users: "${redmineUsers.map(x => x.login).mkString(', ')}"`);
 
         const redmineUser = redmineUsers.filter(x => x.login === syncParams.redmineUsername).single().getOrThrow(`User ${syncParams.redmineUsername} not found in redmine`);
@@ -94,6 +96,7 @@ export module RedmineConnector {
             //process all Toggl entries (check/sync to redmine)
             await Promise.all(
                 togglEntries.map(async togglEntry => await syncTogglEntry(
+                    redmineApiAdminClient, 
                     redmineApiClient, 
                     syncParams, 
                     togglEntry, 
@@ -118,6 +121,7 @@ export module RedmineConnector {
     }
 
     async function syncTogglEntry(
+        redmineApiAdminClient: RedmineApi.Client,
         redmineApiClient: RedmineApi.Client,
         syncParams: SyncParameters,
         togglEntry: TogglApi.TimeEntry,
@@ -188,7 +192,10 @@ export module RedmineConnector {
                         throw new Error(`Last month sync period expired, skipped updating entry, attempted update: ${diffReadableString}.`)
                     }
                     
-                    await updateRedmineTimeEntry(redmineApiClient, existingEntry.id, paramsCreateOrUpdateTimeEntry);
+                    await updateRedmineTimeEntry(
+                        syncParams.updateEntriesAsAdminUser ? redmineApiAdminClient : redmineApiClient, 
+                        existingEntry.id, 
+                        paramsCreateOrUpdateTimeEntry);
 
                     return {
                         togglEntry: togglEntry,
