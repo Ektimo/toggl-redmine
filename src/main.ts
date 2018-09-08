@@ -1,6 +1,6 @@
 import {TogglConnector} from "./toggl-connector";
 import {RedmineConnector} from "./redmine-connector";
-import moment = require("moment");
+import { DateTime } from 'luxon';
 import cron = require("cron");
 import logger from "./logger";
 import {Config} from "./config";
@@ -12,8 +12,8 @@ const config: Config = require('./../config.json');
 const args = process.argv.slice(2);
 
 async function sync() {
-    const from = moment().subtract(1, 'months').startOf('month').format('YYYY-MM-DD');
-    const to = moment().endOf('month').format('YYYY-MM-DD');
+    const from = DateTime.local().startOf('month').minus({ months: 1 }).toFormat('yyyy-MM-dd');
+    const to = DateTime.local().endOf('month').toFormat('yyyy-MM-dd');
 
     let combinedSyncErrors: Vector<SyncError> = Vector.of();
     let combinedSuccessfulSyncs: Vector<SyncSuccess> = Vector.of();

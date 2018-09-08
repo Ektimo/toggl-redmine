@@ -1,5 +1,5 @@
 import {RedmineConnector} from "./redmine-connector";
-import moment = require("moment");
+import { DateTime } from 'luxon';
 import logger from "./logger";
 import {Config, UserCredentialMapping} from "./config";
 import {instanceOf, Option, Vector} from "prelude.ts";
@@ -105,13 +105,13 @@ export module Report {
             .map(x => {
                 if (Helper.isTogglEntry(x.entry)) {
                     return [getUserForTogglUserId(x.togglUserId).redmineUsername,
-                        '  ' + moment(x.entry.start).format('YYYY-MM-DD') + ' →',
+                        '  ' + DateTime.fromISO(x.entry.start).toFormat('yyyy-MM-dd') + ' →',
                         `'${x.entry.description}'`,
                         `'${x.errorMessage}'`]
                 }
                 else {
                     return [getUserForTogglUserId(x.togglUserId).redmineUsername,
-                        '← ' + moment(x.entry.spent_on).format('YYYY-MM-DD'),
+                        '← ' + DateTime.fromISO(x.entry.spent_on).toFormat('yyyy-MM-dd'),
                         `'${x.entry.comments}'`,
                         `'${x.errorMessage}'`]
                 }

@@ -1,6 +1,6 @@
 import {Helper} from "./helper";
 import {Option, Vector} from "prelude.ts";
-import moment = require("moment");
+import { DateTime } from 'luxon';
 import logger from "./logger";
 import {config} from "winston";
 import {sync} from "mkdirp";
@@ -57,10 +57,10 @@ export module RedmineConnector {
     }
     
     function isSpentOnViolatingLastMonthSyncExpiryDays(spentOn: string, syncParams: SyncParameters): boolean {
-        const startOfMonth = moment().startOf('month');
+        const startOfMonth = DateTime.local().startOf('month');
+        const entryDt = DateTime.fromISO(spentOn);
         //throw if an entry from previous month was updated after the previous month sync expiry period
-        if(moment().isAfter(startOfMonth.add(syncParams.lastMonthSyncExpiryDays, 'days')) &&
-            moment(spentOn).isBefore(startOfMonth)) {
+        if(DateTime.local() > startOfMonth.plus({days: syncParams.lastMonthSyncExpiryDays}) && entryDt < startOfMonth) {
             return true;
         }
         return false;            
@@ -114,8 +114,8 @@ export module RedmineConnector {
                     entry: redmineEntry, 
                     errorMessage: "No corresponding Toggl entry for Redmine entry (Deleted toggl entry after it was synced to redmine? If yes, go and delete it manually in redmine as well.)"} })
         ).sortBy((x, y) => {
-            const ts1 = isSyncError(x) ? (Helper.isTogglEntry(x.entry) ? moment(x.entry.start).valueOf() : moment(x.entry.spent_on).valueOf()) : moment(x.togglEntry.start).valueOf();
-            const ts2 = isSyncError(y) ? (Helper.isTogglEntry(y.entry) ? moment(y.entry.start).valueOf() : moment(y.entry.spent_on).valueOf()) : moment(y.togglEntry.start).valueOf();
+            const ts1 = isSyncError(x) ? (Helper.isTogglEntry(x.entry) ? DateTime.fromISO(x.entry.start).valueOf() : DateTime.fromISO(x.entry.spent_on).valueOf()) : DateTime.fromISO(x.togglEntry.start).valueOf();
+            const ts2 = isSyncError(y) ? (Helper.isTogglEntry(y.entry) ? DateTime.fromISO(y.entry.start).valueOf() : DateTime.fromISO(y.entry.spent_on).valueOf()) : DateTime.fromISO(y.togglEntry.start).valueOf();
             return ts2 - ts1;
         });
     }
@@ -137,10 +137,10 @@ export module RedmineConnector {
                 .single()
                 .getOrThrow(`No matching Redmine issue #${issueId} found`);
 
-            const spentOn = moment(togglEntry.start).format('YYYY-MM-DD');
+            const spentOn = DateTime.fromISO(togglEntry.start).toFormat('yyyy-MM-dd');
             const hours = Number(
-                moment(togglEntry.end)
-                    .diff(moment(togglEntry.start), 'hours', true)
+                DateTime.fromISO(togglEntry.end)
+                    .diff(DateTime.fromISO(togglEntry.start)).as('hours')
                     .toFixed(2)
             );
 
