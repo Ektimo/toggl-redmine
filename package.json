@@ -5,7 +5,8 @@
   "main": "./build/main.js",
   "author": "Ektimo",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "buildNoChecks": "tsc --noStrictGenericChecks --skipLibCheck"
   },
   "dependencies": {
     "bottleneck": "2.7.2",
