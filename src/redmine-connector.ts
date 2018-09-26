@@ -250,7 +250,7 @@ export module RedmineConnector {
     async function queryRedmineIssues(redmineApiClient: RedmineApi.Client, issueIds: Vector<number>, page = 1) {
         return new Promise<Vector<RedmineApi.Issue>>((resolve, reject) => {
             let commaSeparatedIssueIds = issueIds.mkString(',');
-            redmineApiClient.issues({limit: queryPageLimit, issue_id: commaSeparatedIssueIds, offset: (page - 1) * queryPageLimit},
+            redmineApiClient.issues({limit: queryPageLimit, issue_id: commaSeparatedIssueIds, status_id: '*', offset: (page - 1) * queryPageLimit},
                 async (err: any, data: RedmineApi.Issues) => {
                     if (err !== null) {
                         const errorMsg = "Failed to retrieve redmine issues: " + JSON.stringify(err);

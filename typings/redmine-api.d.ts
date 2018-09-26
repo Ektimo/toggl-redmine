@@ -40,6 +40,7 @@ declare module RedmineApi {
     
     interface QueryParamsIssues extends QueryParams {
         issue_id?: string; //comma separated issue ids   
+        status_id?: 'open' | 'closed' | '*'; //get issues with the given status id only. Possible values: open, closed, * to get open and closed issues, status id
     }
 
     interface QueryParamsTimeEntries extends QueryParams {
