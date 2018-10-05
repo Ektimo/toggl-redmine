@@ -281,7 +281,7 @@ export module RedmineConnector {
                     let timeEntriesTail = Vector.ofIterable(data.time_entries);
 
                     if (page * data.limit < data.total_count) {
-                        const timeEntriesNextPage = await queryRedmineTimeEntries(redmineApiClient, from, to, page + 1);
+                        const timeEntriesNextPage = await queryRedmineTimeEntries(redmineApiClient, from, to, userId, page + 1);
                         timeEntriesTail = timeEntriesTail.appendAll(timeEntriesNextPage);                        
                     }
 
