@@ -15,7 +15,7 @@ Environment/prerequisites:
 How to:
 * create `config.json`
 * `npm run build`
-* manual run: `node ./built/main.js sync`
+* manual run: `node ./built/main.js sync` or `node ./built/main.js sync john.smith`
 * scheduled run: `crontab` or other tools
 
 Use at your own risk.
