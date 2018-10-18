@@ -163,7 +163,7 @@ export module Report {
             actions = actions.append(
                 sendMail(config.adminNotificationsEmail,
                     "[Toggl-Redmine] Sync success (admin report)",
-                    `<pre>Successfully synced:<br />${successTable.toString()}<br />No changes:<br />${nopTable.toString()}</pre>`
+                    `<pre>Successfully synced:<br />${successTable.toString()}</pre>`
                 )
             );
         }
